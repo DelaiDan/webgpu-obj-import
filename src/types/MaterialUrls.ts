@@ -1,0 +1,1 @@
+export type MaterialURLs = {[materialName: string] : string}

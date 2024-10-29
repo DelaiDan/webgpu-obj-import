@@ -1,0 +1,1 @@
+export type MaterialViews = { [materialName: string]: GPUTextureView }

@@ -1,0 +1,53 @@
+{
+  "name": "webgpu-obj-import",
+  "version": "1.0.0",
+  "description": "Functions to import, map Material to Textures and render .obj files in WebGPU",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsup",
+    "lint": "tsc",
+    "ci": "npm run build && npm run check-exports && npm run lint",
+    "check-exports": "attw --pack . --ignore-rules=cjs-resolves-to-esm"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DelaiDan/webgpu-obj-import.git"
+  },
+  "keywords": [
+    "webgpu",
+    "object",
+    "texture",
+    "material",
+    "import"
+  ],
+  "author": "Arthur Delai",
+  "dependencies": {
+    "@types/node": "^17.0.30",
+    "@webgpu/types": "^0.1.15",
+    "gl-matrix": "^3.4.3",
+    "node": "^17.7.2",
+    "ts-loader": "^9.2.9",
+    "ts-shader-loader": "^1.0.6",
+    "typescript": "^4.6.4"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.16.4",
+    "tsup": "^8.3.5"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/DelaiDan/webgpu-obj-import/issues"
+  },
+  "homepage": "https://github.com/DelaiDan/webgpu-obj-import#readme",
+  "files": [
+    "dist"
+  ],
+  "type": "module",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "import": "./dist/index.js",
+      "default": "./dist/index.cjs"
+    }
+  }
+}
