@@ -3,6 +3,7 @@ import { MaterialMap } from "./types/MaterialMap";
 
 export class ObjMesh {
 
+   device: GPUDevice
    buffer: GPUBuffer
    bufferLayout: GPUVertexBufferLayout
    v: vec3[]
@@ -16,7 +17,6 @@ export class ObjMesh {
    minU: number;
    maxV: number;
    minV: number;
-   teste: Array<any>;
 
    constructor() {
       this.v = [];
@@ -28,13 +28,11 @@ export class ObjMesh {
       this.minU = 0;
       this.maxV = 0;
       this.minV = 0;
-      this.teste = [];
    }
 
    async initialize (device: GPUDevice, url: string) {
+      this.device = device;
       await this.read_file(url);
-
-      console.log(this.materials);
 
       this.vertexCount = this.vertices.length / 8; // x y z u v index_material tiling_u tiling_v
       
@@ -46,23 +44,17 @@ export class ObjMesh {
          bufferSize = Math.ceil(bufferSize / 4) * 4;
       }
 
-      const usage: GPUBufferUsageFlags = GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST;
-      //VERTEX: the buffer can be used as a vertex buffer
-      //COPY_DST: data can be copied to the buffer
-
       const descriptor: GPUBufferDescriptor = {
          size: bufferSize,
-         usage: usage,
-         mappedAtCreation: true // similar to HOST_VISIBLE, allows buffer to be written by the CPU
+         usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+         mappedAtCreation: true
       };
 
       this.buffer = device.createBuffer(descriptor);
 
-      //Buffer has been created, now load in the vertices
       new Float32Array(this.buffer.getMappedRange()).set(this.vertices);
       this.buffer.unmap();
 
-      //now define the buffer layout
       this.bufferLayout = {
          arrayStride: vertexStride,
          attributes: [
@@ -78,7 +70,7 @@ export class ObjMesh {
             },
             {
                shaderLocation: 2,
-               format: "sint32",       //Material/Texture Index
+               format: "uint32",       //Material/Texture Index
                offset: 20
             },
             {
@@ -147,7 +139,7 @@ export class ObjMesh {
       //["vt", "u", "v"] -> vec2(u,v)
       const texcoord: vec2 = [
          Number(components[1]).valueOf(),
-         1.0 - Number(components[2]).valueOf(),
+         Number(components[2]).valueOf(),
       ];
 
       this.vt.push(texcoord);
@@ -155,6 +147,7 @@ export class ObjMesh {
       // Detectar tiling baseado no intervalo das UVs
       this.maxU = Math.max(this.maxU || 0, Number(components[1]).valueOf());
       this.minU = Math.min(this.minU || 0, Number(components[1]).valueOf());
+
       this.maxV = Math.max(this.maxV || 0, Number(components[2]).valueOf());
       this.minV = Math.min(this.minV || 0, Number(components[2]).valueOf());
    }
@@ -188,17 +181,17 @@ export class ObjMesh {
 
    read_corner(vertex_descr: string, result: number[]){
       const values = vertex_descr.split("/");
-            
-      const v = this.v[Number(values[0]).valueOf() - 1];
-      const vt = values[1] ?  this.vt[Number(values[1]).valueOf() - 1] : [0, 0];
 
+      const v = this.v[Number(values[0]).valueOf() - 1];
+      const vt = this.vt[Number(values[1]).valueOf() - 1] || [0, 0];
+      
       result.push(v[0], v[1], v[2]);
       result.push(vt[0], vt[1]);
       
-      console.log(`Material Index: ${this.currentMaterial}`);
-      result.push(this.currentMaterial);
+      result.push(Number(this.currentMaterial).valueOf());
 
-      const [tilingU, tilingV] = this.calculateTiling();      
+      const [tilingU, tilingV] = this.calculateTiling();
+      
       result.push(tilingU, tilingV);
    }
 
@@ -212,12 +205,6 @@ export class ObjMesh {
          this.materials[materialName] = Object.keys(this.materials).length; //Add Index
       }
 
-      // usemtl Material1 ----> this.currentMaterial ----> this.materials Index
-      // f 1/1 2/2 3/3
-
-      // usemtl Material2 ----> this.currentMaterial ----> this.materials Index
-      // f 4/4 5/5 6/6
-
       this.currentMaterial = Number(this.materials[materialName]).valueOf();
    }
 
@@ -225,5 +212,33 @@ export class ObjMesh {
       const tilingU = Math.max(1, Math.abs(this.maxU - this.minU));
       const tilingV = Math.max(1, Math.abs(this.maxV - this.minV));
       return [tilingU, tilingV];
-  }
+   }
+
+   async copyBufferToCPU() {
+      const bufferSize = this.vertices.byteLength;
+    
+      const readBuffer = this.device.createBuffer({
+        size: bufferSize,
+        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+        mappedAtCreation: false,
+      });
+    
+      const commandEncoder = this.device.createCommandEncoder();
+      commandEncoder.copyBufferToBuffer(
+        this.buffer, 0,
+        readBuffer, 0,
+        bufferSize
+      );
+    
+      const commands = commandEncoder.finish();
+      this.device.queue.submit([commands]);
+    
+      await this.device.queue.onSubmittedWorkDone(); 
+      await readBuffer.mapAsync(GPUMapMode.READ);
+      const mappedRange = readBuffer.getMappedRange();
+      const copiedData = new Float32Array(mappedRange);
+    
+      console.log('Buffer Data:', Array.from(copiedData));
+      readBuffer.unmap();
+   }
 }

@@ -73,7 +73,8 @@ export class MaterialObject {
         console.log(`Loaded textures: ${layer}`);
     }
 
-    async loadAndResizeImage(imageData: ImageBitmap): Promise<ImageBitmap> {    
+    async loadAndResizeImage(imageData: ImageBitmap): Promise<ImageBitmap> {
+        console.log("Resizing Images");
         const canvas = document.createElement('canvas');
         canvas.width = 1920;
         canvas.height = 1080;
