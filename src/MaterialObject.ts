@@ -18,15 +18,17 @@ export class MaterialObject {
     view: GPUTextureView;
     sampler: GPUSampler;
 
+    /**
+     * Initializes the Object used for the Object being exported, creating the sampler and textures applying as specified in {@link MaterialMap}
+     * @param device - The {@link GPUDevice} in use
+     * @param urls - The material names and images that will be applied to it  
+     * @param materialMap - Material Map read from the .obj file 
+     */
     async initialize(device: GPUDevice, urls: MaterialURLs, materialMap: MaterialMap) {
         this.device = device;
         const depthLayers = Object.keys(materialMap).length;
 
-        console.log(`Layers : ${depthLayers}`);
-
         await this.integrateTextures(urls, materialMap);
-
-        console.log(this.textureArray);
 
          this.view = this.textureArray.createView({
             format: "rgba8unorm",
@@ -46,7 +48,7 @@ export class MaterialObject {
         });
     }
 
-    async integrateTextures(textureURLs: {[materialName: string] : string}, materialMap: MaterialMap){
+    private async integrateTextures(textureURLs: {[materialName: string] : string}, materialMap: MaterialMap){
         const depthLayers = Object.keys(materialMap).length;
         const textureDescriptor: GPUTextureDescriptor = {
             dimension: '2d',
@@ -64,17 +66,13 @@ export class MaterialObject {
         let layer = 0;
         for(const material of Object.keys(materialMap)){
             const url = textureURLs[material] || "default.jpg";
-            console.log(`Loading texture for material: ${material}, Layer: ${layer}, URL: ${url}`);
             await this.loadImageBitmaps(url, layer);
             
             layer++;
         }
-
-        console.log(`Loaded textures: ${layer}`);
     }
 
-    async loadAndResizeImage(imageData: ImageBitmap): Promise<ImageBitmap> {
-        console.log("Resizing Images");
+    private async loadAndResizeImage(imageData: ImageBitmap): Promise<ImageBitmap> {
         const canvas = document.createElement('canvas');
         canvas.width = 1920;
         canvas.height = 1080;
@@ -85,7 +83,7 @@ export class MaterialObject {
         return createImageBitmap(canvas);
     }
 
-    async loadImageBitmaps(url: string, layer: number) {
+    private async loadImageBitmaps(url: string, layer: number) {
         const filename: string = "dist/img/materials/" + url;
         const response: Response = await fetch(filename);
         const blob: Blob = await response.blob();
@@ -102,6 +100,11 @@ export class MaterialObject {
         );
     }
 
+    /**
+     * Creates the {@link GPUBindGroupLayout} for the Object
+     * @param device - The {@link GPUDevice} in use
+     * @returns - {@link GPUBindGroupLayout}
+     */
     async createMaterialObjectBindGroupLayout(device: GPUDevice = this.device){
         this.bindGroupLayout = device.createBindGroupLayout({
             entries: [
@@ -123,15 +126,19 @@ export class MaterialObject {
         return this.bindGroupLayout;
     }
 
-
-    async createMaterialObjectBindGroup(device: GPUDevice = this.device){
+    /**
+     * Creates the {@link GPUBindGroup} for the Object
+     * @param device - The {@link GPUDevice} in use
+     * @returns - {@link GPUBindGroup}
+     */
+    async createMaterialObjectBindGroup(device: GPUDevice = this.device, bindGroupLayout: GPUBindGroupLayout = this.bindGroupLayout){
         if (!this.view || !this.sampler) {
             console.error("View ou Sampler não foram inicializados corretamente.");
             return;
         }
         this.bindGroup = device.createBindGroup({
             label: "Material Object Bind Group",
-            layout: this.bindGroupLayout,
+            layout: bindGroupLayout,
             entries: [
                 {
                     binding: 0,
@@ -143,52 +150,7 @@ export class MaterialObject {
                 }
             ],
         });
-
-        console.log("BindGroup criado:", this.bindGroup);
         
         return this.bindGroup;
-    }
-    async getFrameObjectLayout(materialMap: MaterialMap){
-        const entries = await this.getBindGroupLayoutEntries(materialMap);
-        
-        const layout = this.device.createBindGroupLayout({
-            label: "ObjectFrameBindGroup",
-            entries:[
-                {
-                    binding: 0,
-                    visibility: GPUShaderStage.VERTEX,
-                    buffer: {}
-                },
-                {
-                    binding: 1,
-                    visibility: GPUShaderStage.VERTEX,
-                    buffer: {
-                        type: "read-only-storage",
-                        hasDynamicOffset: false
-                    }
-                },
-                ...entries
-            ]
-        });
-
-        return layout;
-    }
-
-    async getBindGroupLayoutEntries(materialMap: MaterialMap){
-        return Array.from({ length: Object.keys(materialMap).length * 2 }, (_, index) => {
-            if(index % 2 === 0){
-                return {
-                    binding: index + 2,
-                    visibility: GPUShaderStage.FRAGMENT,
-                    texture: {},
-                }
-            } else {
-                return {
-                    binding: index + 2,
-                    visibility: GPUShaderStage.FRAGMENT,
-                    sampler: {},
-                }
-            }
-        });
     }
 }

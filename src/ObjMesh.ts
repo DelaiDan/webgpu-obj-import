@@ -2,7 +2,6 @@ import { vec2, vec3 } from "gl-matrix";
 import { MaterialMap } from "./types/MaterialMap";
 
 export class ObjMesh {
-
    device: GPUDevice
    buffer: GPUBuffer
    bufferLayout: GPUVertexBufferLayout
@@ -30,6 +29,12 @@ export class ObjMesh {
       this.minV = 0;
    }
 
+   /**
+    * Reads .obj file, extracts position and texture data, creates and populates buffer and {@link MaterialMap}, 
+    * and creates the {@link GPUVertexBufferLayout} used in the shader and render
+    * @param device - The {@link GPUDevice} in use
+    * @param url - The .obj file path/URL
+    */
    async initialize (device: GPUDevice, url: string) {
       this.device = device;
       await this.read_file(url);
@@ -40,7 +45,6 @@ export class ObjMesh {
       let bufferSize = this.vertexCount * vertexStride;
 
       if (bufferSize % 4 !== 0) {
-         console.log("Resizing Buffer");
          bufferSize = Math.ceil(bufferSize / 4) * 4;
       }
 
@@ -82,7 +86,7 @@ export class ObjMesh {
       }
    }
 
-   async read_file(url: string){
+   private async read_file(url: string){
       try {
          let result: number[] = [];
 
@@ -116,11 +120,11 @@ export class ObjMesh {
          
          this.vertices = new Float32Array(result);
       } catch (error) {
-         console.log("Erro ao ler arquivo: ", error);   
+         console.log(`Error trying to read file ${url}: `, error);   
       }
    }
 
-   read_vertex_line(line: string){
+   private read_vertex_line(line: string){
       const components = line.replace("\r", "").replace(" ", "").trim().split(" ");
       
       //["v", "x", "y", "z"] -> vec3(x,y,z)
@@ -133,7 +137,7 @@ export class ObjMesh {
       this.v.push(vertex);
    }
 
-   read_texcoord_line(line: string){
+   private read_texcoord_line(line: string){
       const components = line.replace("\r", "").trim().split(" ");
       
       //["vt", "u", "v"] -> vec2(u,v)
@@ -152,7 +156,7 @@ export class ObjMesh {
       this.minV = Math.min(this.minV || 0, Number(components[2]).valueOf());
    }
 
-   read_normal_line(line: string){
+   private read_normal_line(line: string){
       const components = line.replace("\r", "").trim().split(" ");
       
       //["vn", "nx", "ny", "nz"] -> vec3(nx,ny,nz)
@@ -165,7 +169,7 @@ export class ObjMesh {
       this.vn.push(normal);
    }
 
-   read_face_line(line: string, result: number[]){
+   private read_face_line(line: string, result: number[]){
       line = line.replace("\n", "").replace("\r", "").trim();
       const vertex_descr = line.split(" ");
       
@@ -179,7 +183,7 @@ export class ObjMesh {
       }
    }
 
-   read_corner(vertex_descr: string, result: number[]){
+   private read_corner(vertex_descr: string, result: number[]){
       const values = vertex_descr.split("/");
 
       const v = this.v[Number(values[0]).valueOf() - 1];
@@ -195,7 +199,7 @@ export class ObjMesh {
       result.push(tilingU, tilingV);
    }
 
-   read_material(line: string){
+   private read_material(line: string){
       const components = line.replace("\r", "").trim().split(" ");
       
       //usemtl  < material name >
@@ -208,12 +212,16 @@ export class ObjMesh {
       this.currentMaterial = Number(this.materials[materialName]).valueOf();
    }
 
-   calculateTiling(): [number, number] {
+   private calculateTiling(): [number, number] {
       const tilingU = Math.max(1, Math.abs(this.maxU - this.minU));
       const tilingV = Math.max(1, Math.abs(this.maxV - this.minV));
       return [tilingU, tilingV];
    }
 
+   /**
+    * Log on the console the contents of the {@link GPUVertexBufferLayout}.
+    * Note: Should be called after the {@link GPURenderPassEncoder}.end and {@link GPUQueue}.submit
+    */
    async copyBufferToCPU() {
       const bufferSize = this.vertices.byteLength;
     
