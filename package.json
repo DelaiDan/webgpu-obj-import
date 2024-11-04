@@ -1,6 +1,6 @@
 {
   "name": "webgpu-obj-import",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Functions to import, map Material to Textures and render .obj files in WebGPU",
   "main": "dist/index.js",
   "scripts": {
