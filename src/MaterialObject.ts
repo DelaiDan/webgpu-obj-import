@@ -18,6 +18,8 @@ export class MaterialObject {
     view: GPUTextureView;
     sampler: GPUSampler;
 
+    defaultImageURL: string;
+
     /**
      * Initializes the Object used for the Object being exported, creating the sampler and textures applying as specified in {@link MaterialMap}
      * @param device - The {@link GPUDevice} in use
@@ -65,7 +67,7 @@ export class MaterialObject {
 
         let layer = 0;
         for(const material of Object.keys(materialMap)){
-            const url = textureURLs[material] || "default.jpg";
+            const url = textureURLs[material] || this.defaultImageURL || "";
             await this.loadImageBitmaps(url, layer);
             
             layer++;
@@ -84,7 +86,7 @@ export class MaterialObject {
     }
 
     private async loadImageBitmaps(url: string, layer: number) {
-        const filename: string = "dist/img/materials/" + url;
+        const filename: string = url;
         const response: Response = await fetch(filename);
         const blob: Blob = await response.blob();
 
@@ -124,6 +126,14 @@ export class MaterialObject {
             ],
         });
         return this.bindGroupLayout;
+    }
+
+    /**
+     * Sets the default image to use for unmapped textures
+     * @param defaultImageURL - The image URL
+    */
+    async setDefaultImageURL(defaultImageURL: string){
+        this.defaultImageURL = defaultImageURL.toString();
     }
 
     /**
